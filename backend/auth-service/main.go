@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -34,9 +34,19 @@ var db *gorm.DB
 
 func initDB() {
 	var err error
-	db, err = gorm.Open(sqlite.Open("users.db"), &gorm.Config{})
+	dsn := "host=localhost user=admin password=adminpassword dbname=iot_db port=5432 sslmode=disable TimeZone=Europe/Warsaw"
+	
+	for i := 0; i < 5; i++ {
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			break
+		}
+		log.Println("waiting for postgres...")
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
-		log.Fatal("failed to connect database")
+		log.Fatal("failed to connect database after retries: ", err)
 	}
 	db.AutoMigrate(&User{})
 

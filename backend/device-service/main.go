@@ -8,7 +8,7 @@ import (
 	"device-service/repository"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -24,7 +24,8 @@ func SetupRouter(repo repository.DeviceRepository) *gin.Engine {
 }
 
 func main() {
-	db, err := gorm.Open(sqlite.Open("devices.db"), &gorm.Config{})
+	dsn := "host=localhost user=admin password=adminpassword dbname=iot_db port=5432 sslmode=disable TimeZone=Europe/Warsaw"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("failed to connect database")
 	}

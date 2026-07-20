@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -57,7 +58,11 @@ var (
 
 func initDB(dbPath string) {
 	var err error
-	db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if strings.Contains(dbPath, "host=") {
+		db, err = gorm.Open(postgres.Open(dbPath), &gorm.Config{})
+	} else {
+		db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	}
 	if err != nil {
 		log.Fatal("failed to connect rules database")
 	}
@@ -223,7 +228,8 @@ func setupRouter() *gin.Engine {
 }
 
 func main() {
-	initDB("rules.db")
+	dsn := "host=localhost user=admin password=adminpassword dbname=iot_db port=5432 sslmode=disable TimeZone=Europe/Warsaw"
+	initDB(dsn)
 	initInflux()
 	initMQTT()
 
