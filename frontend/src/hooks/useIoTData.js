@@ -20,11 +20,10 @@ export const useIoTData = (token, timeRange = '-15m') => {
         fetch('http://localhost:8080/api/alerts', { headers: getHeaders() }),
         fetch('http://localhost:8080/api/rules', { headers: getHeaders() })
       ]);
-      
-      if (devRes.ok) setDevices(await devRes.json());
+      if (devRes.ok) setDevices((await devRes.json()) || []);
       if (histRes.ok) setHistoryData(await histRes.json());
-      if (alertRes.ok) setAlerts(await alertRes.json());
-      if (rulesRes.ok) setRules(await rulesRes.json());
+      if (alertRes.ok) setAlerts((await alertRes.json()) || []);
+      if (rulesRes.ok) setRules((await rulesRes.json()) || []);
     } catch (e) {
       console.error("Failed to fetch initial data", e);
     }

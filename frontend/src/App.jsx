@@ -19,8 +19,9 @@ function App() {
 
   // Simple toast logic based on new alerts
   useEffect(() => {
-    if (alerts.length > 0) {
-      const latestAlert = alerts[0]; // Alerts are prepended
+    const validAlerts = alerts || [];
+    if (validAlerts.length > 0) {
+      const latestAlert = validAlerts[0]; // Alerts are prepended
       // Ensure we don't spam the same alert on load
       const isNew = Date.now() - (latestAlert.id / 1000000) < 5000;
       if (isNew) {
@@ -30,7 +31,7 @@ function App() {
     }
   }, [alerts]);
 
-  const getUnreadAlerts = () => alerts.length;
+  const getUnreadAlerts = () => (alerts || []).length;
 
   const handleLogin = async () => {
     setLoginError('');

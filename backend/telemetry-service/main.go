@@ -45,7 +45,7 @@ type Rule struct {
 
 var (
 	mu           sync.RWMutex
-	alerts       []Alert
+	alerts       = []Alert{}
 	latestValues = map[string]float64{}
 	influxClient influxdb2.Client
 	influxURL    = "http://localhost:8086"
