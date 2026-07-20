@@ -188,8 +188,7 @@ func wsHandler(c *gin.Context) {
 	}
 }
 
-func main() {
-	initMQTT()
+func setupRouter() *gin.Engine {
 	r := gin.Default()
 	
 	// Basic CORS middleware
@@ -272,6 +271,13 @@ func main() {
 	})
 
 	protected.GET("/ws", wsHandler)
+
+	return r
+}
+
+func main() {
+	initMQTT()
+	r := setupRouter()
 
 	log.Println("API Gateway running on port 8080")
 	r.Run(":8080")

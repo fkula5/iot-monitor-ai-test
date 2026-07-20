@@ -238,8 +238,7 @@ func deleteRoleHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Role deleted"})
 }
 
-func main() {
-	initDB()
+func setupRouter() *gin.Engine {
 	r := gin.Default()
 
 	r.POST("/login", loginHandler)
@@ -251,6 +250,13 @@ func main() {
 	r.GET("/roles", getRolesHandler)
 	r.POST("/roles", createRoleHandler)
 	r.DELETE("/roles/:name", deleteRoleHandler)
+	
+	return r
+}
+
+func main() {
+	initDB()
+	r := setupRouter()
 
 	log.Println("Auth Service running on port 8083")
 	r.Run(":8083")
