@@ -224,6 +224,11 @@ func main() {
 	protected.POST("/api/rules", RequireAdmin(), func(c *gin.Context) { proxyRequest("POST", ruleSvc+"/rules", c) })
 	protected.DELETE("/api/rules/:id", RequireAdmin(), func(c *gin.Context) { proxyRequest("DELETE", ruleSvc+"/rules/"+c.Param("id"), c) })
 
+	authSvcPriv := getEnvOrDefault("AUTH_SVC_URL", "http://localhost:8083")
+	protected.GET("/api/users", RequireAdmin(), func(c *gin.Context) { proxyRequest("GET", authSvcPriv+"/users", c) })
+	protected.PUT("/api/users/:id/role", RequireAdmin(), func(c *gin.Context) { proxyRequest("PUT", authSvcPriv+"/users/"+c.Param("id")+"/role", c) })
+	protected.DELETE("/api/users/:id", RequireAdmin(), func(c *gin.Context) { proxyRequest("DELETE", authSvcPriv+"/users/"+c.Param("id"), c) })
+
 	protected.POST("/api/devices/:id/command", RequireAdmin(), func(c *gin.Context) {
 		id := c.Param("id")
 		var payload map[string]string

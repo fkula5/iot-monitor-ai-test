@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Server, Settings, AlertTriangle, LogOut, Plus, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Server, Settings, AlertTriangle, LogOut, Plus, Trash2, UserCog } from 'lucide-react';
 import './App.css';
 import { useIoTData } from './hooks/useIoTData';
 import { Dashboard } from './components/Dashboard';
@@ -7,6 +7,7 @@ import { DeviceList } from './components/DeviceList';
 import { AlertsList } from './components/AlertsList';
 import { Rules } from './components/Rules';
 import { AddDeviceModal } from './components/AddDeviceModal';
+import { UserManagement } from './components/UserManagement';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -139,10 +140,12 @@ function App() {
             <Settings size={20} />
             <span>Reguły Engine</span>
           </button>
-          <button className="nav-item">
-            <Settings size={20} />
-            <span>Ustawienia</span>
-          </button>
+          {userRole === 'Admin' && (
+            <button className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+              <UserCog size={20} />
+              <span>Konta / Ustawienia</span>
+            </button>
+          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -198,6 +201,7 @@ function App() {
           )}
           {activeTab === 'alerts' && <AlertsList alerts={alerts} />}
           {activeTab === 'rules' && <Rules rules={rules} addRule={addRule} deleteRule={deleteRule} devices={devices} userRole={userRole} />}
+          {activeTab === 'settings' && userRole === 'Admin' && <UserManagement token={token} />}
         </div>
       </main>
 

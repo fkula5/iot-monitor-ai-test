@@ -130,12 +130,56 @@ func registerHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User registered"})
 }
 
+func getUsersHandler(c *gin.Context) {
+	var users []User
+	if err := db.Select("id", "username", "role").Find(&users).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		return
+	}
+	c.JSON(http.StatusOK, users)
+}
+
+func updateRoleHandler(c *gin.Context) {
+	id := c.Param("id")
+	var payload struct {
+		Role string `json:"role"`
+	}
+	if err := c.BindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+		return
+	}
+
+	if payload.Role != "Admin" && payload.Role != "Viewer" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
+		return
+	}
+
+	if err := db.Model(&User{}).Where("id = ?", id).Update("role", payload.Role).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update role"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Role updated"})
+}
+
+func deleteUserHandler(c *gin.Context) {
+	id := c.Param("id")
+	if err := db.Delete(&User{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "User deleted"})
+}
+
 func main() {
 	initDB()
 	r := gin.Default()
 
 	r.POST("/login", loginHandler)
 	r.POST("/register", registerHandler)
+	r.GET("/users", getUsersHandler)
+	r.PUT("/users/:id/role", updateRoleHandler)
+	r.DELETE("/users/:id", deleteUserHandler)
 
 	log.Println("Auth Service running on port 8083")
 	r.Run(":8083")
