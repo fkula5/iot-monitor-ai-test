@@ -1,0 +1,35 @@
+# Go workspace
+bin/
+pkg/
+
+# Compiled object files, static libraries, etc.
+*.o
+*.a
+*.so
+
+# Go binaries for our services
+backend/auth-service/auth-service
+backend/device-service/device-service
+backend/telemetry-service/telemetry-service
+backend/edge-simulator/edge-simulator
+backend/gateway/gateway
+backend/rule-engine/rule-engine
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+frontend/.eslintcache
+
+# Env variables
+.env
+.env.local
+.env.*.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

@@ -22,3 +22,6 @@ Poniższe reguły obowiązują przy każdym nowym zadaniu i modyfikacji kodu w t
 - **Backend**: Go (Gin, GORM, Paho MQTT) + PostgreSQL + SQLite (do szybkich testów in-memory).
 - **Frontend**: React + Vite + Vanilla CSS. (Nie używaj TailwindCSS, chyba że użytkownik tego zażąda).
 - **IoT**: Komunikacja oparta na brokerze MQTT (Mosquitto) i InfluxDB do Time-Series.
+
+## 5. Praca z Systemem Kontroli Wersji (Git)
+- **Twórz małe, atomowe commity.** Nie zrzucaj całej implementacji ogromnego feature'a (Fazy) do jednego potężnego commita. Zamiast tego wdrażaj kod mniejszymi, logicznymi etapami (np. po wdrożeniu API stwórz commit "feat: add user auth api", potem po dodaniu UI "feat: add user login form"). Pozwoli to na lepsze śledzenie zmian w historii.
