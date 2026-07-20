@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:alpine AS builder
 
 # SQLite requires CGO
 RUN apk add --no-cache gcc musl-dev
@@ -12,6 +12,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o main .
 
 # Run stage
 FROM alpine:latest
+RUN apk add --no-cache tzdata
 WORKDIR /root/
 COPY --from=builder /app/main .
 EXPOSE 8082

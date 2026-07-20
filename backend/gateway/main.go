@@ -111,17 +111,20 @@ func wsHandler(c *gin.Context) {
 	}
 	defer ws.Close()
 
+	telemetrySvc := getEnvOrDefault("TELEMETRY_SVC_URL", "http://localhost:8082")
+	deviceSvc := getEnvOrDefault("DEVICE_SVC_URL", "http://localhost:8081")
+	
 	for {
 		time.Sleep(3 * time.Second)
 		
-		resp, err := http.Get("http://localhost:8082/latest")
+		resp, err := http.Get(telemetrySvc + "/latest")
 		if err != nil { continue }
 		body, _ := io.ReadAll(resp.Body)
 		var latest map[string]float64
 		json.Unmarshal(body, &latest)
 		resp.Body.Close()
 		
-		resp2, err := http.Get("http://localhost:8082/alerts")
+		resp2, err := http.Get(telemetrySvc + "/alerts")
 		var alerts []interface{}
 		if err == nil {
 			body2, _ := io.ReadAll(resp2.Body)
@@ -129,11 +132,20 @@ func wsHandler(c *gin.Context) {
 			resp2.Body.Close()
 		}
 
+		resp3, err := http.Get(deviceSvc + "/devices")
+		var devices []interface{}
+		if err == nil {
+			body3, _ := io.ReadAll(resp3.Body)
+			json.Unmarshal(body3, &devices)
+			resp3.Body.Close()
+		}
+
 		msg := map[string]interface{}{
 			"type": "update",
 			"data": map[string]interface{}{
 				"latest": latest,
 				"alerts": alerts,
+				"devices": devices,
 			},
 		}
 
@@ -172,7 +184,6 @@ func main() {
 	protected := r.Group("/")
 	protected.Use(JWTMiddleware())
 	
-	authSvc := getEnvOrDefault("AUTH_SVC_URL", "http://localhost:8083")
 	deviceSvc := getEnvOrDefault("DEVICE_SVC_URL", "http://localhost:8081")
 	telemetrySvc := getEnvOrDefault("TELEMETRY_SVC_URL", "http://localhost:8082")
 	ruleSvc := getEnvOrDefault("RULE_SVC_URL", "http://localhost:8082")
