@@ -39,6 +39,15 @@ func (m *MockRepo) Delete(id string) error {
 func (m *MockRepo) Count() (int64, error) {
 	return int64(len(m.devices)), nil
 }
+func (m *MockRepo) UpdateStatus(id string, status string) error {
+	for i, d := range m.devices {
+		if d.ID == id {
+			m.devices[i].Status = status
+			return nil
+		}
+	}
+	return nil
+}
 
 func setupRouter(repo repository.DeviceRepository) *gin.Engine {
 	gin.SetMode(gin.TestMode)
