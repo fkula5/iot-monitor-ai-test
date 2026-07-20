@@ -46,24 +46,41 @@ export const useIoTData = (token, timeRange = '-15m') => {
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === 'update') {
-        const { latest, alerts: newAlerts } = msg.data;
+        const { latest, alerts: newAlerts, devices: newDevices } = msg.data;
         
-        // Update devices with latest values
-        if (latest) {
+        // Update entire device list if provided (so we get status changes like online/offline)
+        if (newDevices && newDevices.length > 0) {
+           setDevices(prev => newDevices.map(dev => {
+             // Keep the latest value if we already had it in the UI (or if it's in `latest`)
+             const val = (latest && latest[dev.id] !== undefined) ? latest[dev.id] : 
+                         (prev.find(p => p.id === dev.id)?.value);
+             return { ...dev, value: val };
+           }));
+        } else if (latest) {
+          // Fallback just in case: Update devices with latest values only
           setDevices(prev => prev.map(dev => {
             if (latest[dev.id] !== undefined) {
               return { ...dev, value: latest[dev.id] };
             }
             return dev;
           }));
-          
+        }
+        
+        if (latest) {
           // Append to history for charts
           setHistoryData(prev => {
              const nowTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
              const newHistory = { ...prev };
              for (const [devId, val] of Object.entries(latest)) {
-                if (newHistory[devId]) {
-                   newHistory[devId] = [...newHistory[devId].slice(1), { time: nowTime, value: val }];
+                if (!newHistory[devId]) {
+                   newHistory[devId] = [];
+                }
+                const currentHistory = newHistory[devId];
+                const updatedHistory = [...currentHistory, { time: nowTime, value: val }];
+                if (updatedHistory.length > 50) {
+                   newHistory[devId] = updatedHistory.slice(1);
+                } else {
+                   newHistory[devId] = updatedHistory;
                 }
              }
              return newHistory;
