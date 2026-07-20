@@ -360,3 +360,8 @@
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
