@@ -28,8 +28,21 @@ services:
       - mosquitto_log:/mosquitto/log
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: iot_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: adminpassword
+      POSTGRES_DB: iot_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
 volumes:
   influxdb2_data:
   influxdb2_config:
   mosquitto_data:
   mosquitto_log:
+  postgres_data:
