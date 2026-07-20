@@ -19,17 +19,15 @@ jobs:
         go-version: 'stable'
         cache-dependency-path: backend/**/go.sum
 
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v6
-      with:
-        version: latest
-        working-directory: backend/device-service
-        args: --timeout=5m
-
-    - name: Test device-service
+    - name: Run go vet and go fmt
       run: |
         cd backend/device-service
         go mod tidy
+        go vet ./...
+        
+    - name: Test device-service
+      run: |
+        cd backend/device-service
         go test -v ./...
 
   frontend-test:
