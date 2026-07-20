@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export const useIoTData = (token) => {
+export const useIoTData = (token, timeRange = '-15m') => {
   const [devices, setDevices] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [historyData, setHistoryData] = useState({});
@@ -15,7 +15,7 @@ export const useIoTData = (token) => {
     try {
       const [devRes, histRes, alertRes] = await Promise.all([
         fetch('http://localhost:8080/api/devices', { headers: getHeaders() }),
-        fetch('http://localhost:8080/api/history', { headers: getHeaders() }),
+        fetch(`http://localhost:8080/api/history?range=${timeRange}`, { headers: getHeaders() }),
         fetch('http://localhost:8080/api/alerts', { headers: getHeaders() })
       ]);
       
@@ -75,7 +75,7 @@ export const useIoTData = (token) => {
     };
 
     return () => ws.close();
-  }, [token]);
+  }, [token, timeRange]);
 
   const addDevice = async (device) => {
     const res = await fetch('http://localhost:8080/api/devices', {

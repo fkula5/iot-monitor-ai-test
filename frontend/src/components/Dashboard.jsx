@@ -1,8 +1,8 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Thermometer, Droplets, Activity } from 'lucide-react';
+import { Thermometer, Droplets, Activity, Clock } from 'lucide-react';
 
-export const Dashboard = ({ devices, historyData }) => {
+export const Dashboard = ({ devices, historyData, timeRange, setTimeRange }) => {
   const activeDevices = devices.filter(d => d.status === 'online').length;
   const avgTemp = devices
     .filter(d => d.type === 'temperature' && d.status === 'online')
@@ -25,6 +25,20 @@ export const Dashboard = ({ devices, historyData }) => {
             <p className="metric-value">{avgTemp ? avgTemp.toFixed(1) : '--'} °C</p>
           </div>
         </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
+        <Clock size={16} color="var(--text-muted)" />
+        <span style={{color: 'var(--text-muted)'}}>Zakres czasu:</span>
+        <select 
+          value={timeRange} 
+          onChange={(e) => setTimeRange(e.target.value)}
+          style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'white' }}
+        >
+          <option value="-15m">Ostatnie 15 minut</option>
+          <option value="-1h">Ostatnia 1 godzina</option>
+          <option value="-24h">Ostatnie 24 godziny</option>
+        </select>
       </div>
 
       <div className="charts-grid">

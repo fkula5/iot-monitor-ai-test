@@ -2,13 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
-	"math/rand"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 )
 
@@ -25,14 +27,15 @@ type Alert struct {
 	Timestamp string `json:"timestamp"`
 }
 
+type TelemetryPayload struct {
+	DeviceID string  `json:"deviceId"`
+	Value    float64 `json:"value"`
+}
+
 var (
-	mu          sync.RWMutex
-	alerts      []Alert
-	latestValues = map[string]float64{
-		"dev-1": 22.5,
-		"dev-2": 45.0,
-		"dev-4": -4.2,
-	}
+	mu           sync.RWMutex
+	alerts       []Alert
+	latestValues = map[string]float64{}
 	influxClient influxdb2.Client
 	influxURL    = "http://localhost:8086"
 	influxToken  = "my-super-secret-auth-token"
@@ -44,50 +47,27 @@ func initInflux() {
 	influxClient = influxdb2.NewClient(influxURL, influxToken)
 }
 
-func generateHistoryToInflux() {
-	writeAPI := influxClient.WriteAPIBlocking(influxOrg, influxBucket)
-	now := time.Now()
-	for i := 15; i >= 0; i-- {
-		t := now.Add(time.Duration(-i*3) * time.Second)
-		p1 := influxdb2.NewPoint("temperature",
-			map[string]string{"device": "dev-1"},
-			map[string]interface{}{"value": 22.5 + (rand.Float64()-0.5)*2},
-			t)
-		p4 := influxdb2.NewPoint("temperature",
-			map[string]string{"device": "dev-4"},
-			map[string]interface{}{"value": -4.2 + (rand.Float64()-0.5)*1},
-			t)
-		writeAPI.WritePoint(context.Background(), p1)
-		writeAPI.WritePoint(context.Background(), p4)
-	}
-}
+func initMQTT() {
+	opts := mqtt.NewClientOptions()
+	opts.AddBroker("tcp://localhost:1883")
+	opts.SetClientID("telemetry_service")
 
-func simulator() {
-	writeAPI := influxClient.WriteAPIBlocking(influxOrg, influxBucket)
-	for {
-		time.Sleep(3 * time.Second)
+	opts.SetDefaultPublishHandler(func(client mqtt.Client, msg mqtt.Message) {
+		var payload TelemetryPayload
+		if err := json.Unmarshal(msg.Payload(), &payload); err != nil {
+			log.Printf("Invalid MQTT payload: %v", err)
+			return
+		}
+
 		mu.Lock()
+		latestValues[payload.DeviceID] = payload.Value
 		
-		val1 := latestValues["dev-1"] + (rand.Float64()-0.5)*1.0
-		val4 := latestValues["dev-4"] + (rand.Float64()-0.5)*1.0
-		if val4 > 0 { val4 = -1.0 }
-
-		latestValues["dev-1"] = val1
-		latestValues["dev-4"] = val4
-
-		// Write to InfluxDB
-		t := time.Now()
-		p1 := influxdb2.NewPoint("temperature", map[string]string{"device": "dev-1"}, map[string]interface{}{"value": val1}, t)
-		p4 := influxdb2.NewPoint("temperature", map[string]string{"device": "dev-4"}, map[string]interface{}{"value": val4}, t)
-		writeAPI.WritePoint(context.Background(), p1)
-		writeAPI.WritePoint(context.Background(), p4)
-
-		if rand.Float64() > 0.9 {
+		if payload.Value > 40.0 {
 			alert := Alert{
 				ID:        time.Now().UnixNano(),
-				DeviceID:  "dev-1",
-				Message:   "Odnotowano nagły skok parametru (InfluxDB Backend).",
-				Type:      "warning",
+				DeviceID:  payload.DeviceID,
+				Message:   "Krytyczna temperatura przekroczyła 40°C! (MQTT/Alert Engine)",
+				Type:      "danger",
 				Timestamp: time.Now().Format(time.RFC3339),
 			}
 			alerts = append([]Alert{alert}, alerts...)
@@ -96,21 +76,53 @@ func simulator() {
 			}
 		}
 		mu.Unlock()
+
+		writeAPI := influxClient.WriteAPIBlocking(influxOrg, influxBucket)
+		p := influxdb2.NewPoint("temperature",
+			map[string]string{"device": payload.DeviceID},
+			map[string]interface{}{"value": payload.Value},
+			time.Now())
+		writeAPI.WritePoint(context.Background(), p)
+	})
+
+	client := mqtt.NewClient(opts)
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		log.Fatalf("Error connecting to MQTT: %v", token.Error())
 	}
+
+	if token := client.Subscribe("iot/sensors/+/telemetry", 0, nil); token.Wait() && token.Error() != nil {
+		log.Fatalf("Error subscribing to MQTT: %v", token.Error())
+	}
+	
+	log.Println("Subscribed to MQTT topics.")
 }
 
 func main() {
 	initInflux()
-	generateHistoryToInflux()
-	go simulator()
+	initMQTT()
 
 	r := gin.Default()
 
 	r.GET("/history", func(c *gin.Context) {
+		timeRange := c.DefaultQuery("range", "-15m")
+		
+		if !strings.HasPrefix(timeRange, "-") {
+			timeRange = "-15m"
+		}
+
 		queryAPI := influxClient.QueryAPI(influxOrg)
+		
+		var window = "5s"
+		if timeRange == "-1h" {
+			window = "30s"
+		} else if timeRange == "-24h" {
+			window = "5m"
+		}
+
 		query := `from(bucket: "` + influxBucket + `") 
-			|> range(start: -10m) 
+			|> range(start: ` + timeRange + `) 
 			|> filter(fn: (r) => r._measurement == "temperature") 
+			|> aggregateWindow(every: ` + window + `, fn: mean, createEmpty: false)
 			|> keep(columns: ["_time", "_value", "device"])`
 		
 		result, err := queryAPI.Query(context.Background(), query)

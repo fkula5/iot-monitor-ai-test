@@ -9,10 +9,11 @@ import { AlertsList } from './components/AlertsList';
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [token, setToken] = useState(localStorage.getItem('jwt_token') || null);
+  const [timeRange, setTimeRange] = useState('-15m');
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
   const [loginError, setLoginError] = useState('');
 
-  const { devices, alerts, historyData, fetchInitialData, addDevice, deleteDevice } = useIoTData(token);
+  const { devices, alerts, historyData, fetchInitialData, addDevice, deleteDevice } = useIoTData(token, timeRange);
 
   const getUnreadAlerts = () => alerts.length;
 
@@ -126,7 +127,7 @@ function App() {
         </header>
         
         <div className="content-area">
-          {activeTab === 'dashboard' && <Dashboard devices={devices} historyData={historyData} />}
+          {activeTab === 'dashboard' && <Dashboard devices={devices} historyData={historyData} timeRange={timeRange} setTimeRange={setTimeRange} />}
           {activeTab === 'devices' && (
             <div>
               <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
