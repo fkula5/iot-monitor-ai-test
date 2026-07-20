@@ -150,7 +150,14 @@ func main() {
 	protected.POST("/api/devices", func(c *gin.Context) { proxyRequest("POST", "http://localhost:8081/devices", c) })
 	protected.DELETE("/api/devices/:id", func(c *gin.Context) { proxyRequest("DELETE", "http://localhost:8081/devices/"+c.Param("id"), c) })
 	
-	protected.GET("/api/history", func(c *gin.Context) { proxyRequest("GET", "http://localhost:8082/history", c) })
+	protected.GET("/api/history", func(c *gin.Context) {
+		query := c.Request.URL.RawQuery
+		url := "http://localhost:8082/history"
+		if query != "" {
+			url += "?" + query
+		}
+		proxyRequest("GET", url, c)
+	})
 	protected.GET("/api/alerts", func(c *gin.Context) { proxyRequest("GET", "http://localhost:8082/alerts", c) })
 
 	protected.GET("/ws", wsHandler)

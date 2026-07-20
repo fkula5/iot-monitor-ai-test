@@ -7,6 +7,8 @@ AUTH_PID=$!
 TELEMETRY_PID=$!
 (cd gateway && go run main.go) &
 GATEWAY_PID=$!
+(cd edge-simulator && go run main.go) &
+EDGE_PID=$!
 
 echo "All services started."
-wait $DEVICE_PID $AUTH_PID $TELEMETRY_PID $GATEWAY_PID
+wait $DEVICE_PID $AUTH_PID $TELEMETRY_PID $GATEWAY_PID $EDGE_PID
