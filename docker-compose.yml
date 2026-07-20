@@ -40,6 +40,82 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  auth-service:
+    build: ./backend/auth-service
+    container_name: iot_auth_service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=adminpassword
+      - DB_NAME=iot_db
+    depends_on:
+      - postgres
+
+  device-service:
+    build: ./backend/device-service
+    container_name: iot_device_service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=adminpassword
+      - DB_NAME=iot_db
+      - MQTT_BROKER=mosquitto:1883
+    depends_on:
+      - postgres
+      - mosquitto
+
+  telemetry-service:
+    build: ./backend/telemetry-service
+    container_name: iot_telemetry_service
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=admin
+      - DB_PASSWORD=adminpassword
+      - DB_NAME=iot_db
+      - MQTT_BROKER=mosquitto:1883
+      - INFLUX_URL=http://influxdb:8086
+      - INFLUX_TOKEN=my-super-secret-auth-token
+      - INFLUX_ORG=iot_org
+      - INFLUX_BUCKET=telemetry_bucket
+    depends_on:
+      - postgres
+      - mosquitto
+      - influxdb
+
+  gateway:
+    build: ./backend/gateway
+    container_name: iot_gateway
+    environment:
+      - MQTT_BROKER=mosquitto:1883
+      - AUTH_SVC_URL=http://auth-service:8083
+      - DEVICE_SVC_URL=http://device-service:8081
+      - TELEMETRY_SVC_URL=http://telemetry-service:8082
+      - RULE_SVC_URL=http://telemetry-service:8082
+    depends_on:
+      - auth-service
+      - device-service
+      - telemetry-service
+      - mosquitto
+
+  edge-simulator:
+    build: ./backend/edge-simulator
+    container_name: iot_edge_simulator
+    environment:
+      - MQTT_BROKER=mosquitto:1883
+    depends_on:
+      - mosquitto
+
+  frontend:
+    build: ./frontend
+    container_name: iot_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway
+
 volumes:
   influxdb2_data:
   influxdb2_config:
