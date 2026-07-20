@@ -50,13 +50,10 @@ jobs:
         cd frontend
         npm ci
 
-    - name: Setup oxlint
-      uses: oxc-project/setup-oxlint@v1
-
     - name: Lint (oxlint)
       run: |
         cd frontend
-        oxlint
+        npx --yes oxlint@latest
 
     - name: Test (Vitest)
       run: |
