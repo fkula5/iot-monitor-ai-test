@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -19,9 +20,17 @@ import (
 var jwtKey = []byte("super_secret_key_123") // Needs to match auth-service
 var mqttClient mqtt.Client
 
+func getEnvOrDefault(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
+
 func initMQTT() {
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://localhost:1883")
+	mqttBroker := getEnvOrDefault("MQTT_BROKER", "localhost:1883")
+	opts.AddBroker(fmt.Sprintf("tcp://%s", mqttBroker))
 	opts.SetClientID("api_gateway")
 
 	mqttClient = mqtt.NewClient(opts)
@@ -151,34 +160,40 @@ func main() {
 	})
 
 	// Public Auth endpoints
+	authSvcPub := getEnvOrDefault("AUTH_SVC_URL", "http://localhost:8083")
 	r.POST("/api/auth/login", func(c *gin.Context) {
-		proxyRequest("POST", "http://localhost:8083/login", c)
+		proxyRequest("POST", authSvcPub+"/login", c)
 	})
 	r.POST("/api/auth/register", func(c *gin.Context) {
-		proxyRequest("POST", "http://localhost:8083/register", c)
+		proxyRequest("POST", authSvcPub+"/register", c)
 	})
 
 	// Protected endpoints
 	protected := r.Group("/")
 	protected.Use(JWTMiddleware())
 	
-	protected.GET("/api/devices", func(c *gin.Context) { proxyRequest("GET", "http://localhost:8081/devices", c) })
-	protected.POST("/api/devices", func(c *gin.Context) { proxyRequest("POST", "http://localhost:8081/devices", c) })
-	protected.DELETE("/api/devices/:id", func(c *gin.Context) { proxyRequest("DELETE", "http://localhost:8081/devices/"+c.Param("id"), c) })
+	authSvc := getEnvOrDefault("AUTH_SVC_URL", "http://localhost:8083")
+	deviceSvc := getEnvOrDefault("DEVICE_SVC_URL", "http://localhost:8081")
+	telemetrySvc := getEnvOrDefault("TELEMETRY_SVC_URL", "http://localhost:8082")
+	ruleSvc := getEnvOrDefault("RULE_SVC_URL", "http://localhost:8082")
+
+	protected.GET("/api/devices", func(c *gin.Context) { proxyRequest("GET", deviceSvc+"/devices", c) })
+	protected.POST("/api/devices", func(c *gin.Context) { proxyRequest("POST", deviceSvc+"/devices", c) })
+	protected.DELETE("/api/devices/:id", func(c *gin.Context) { proxyRequest("DELETE", deviceSvc+"/devices/"+c.Param("id"), c) })
 	
 	protected.GET("/api/history", func(c *gin.Context) {
 		query := c.Request.URL.RawQuery
-		url := "http://localhost:8082/history"
+		url := telemetrySvc + "/history"
 		if query != "" {
 			url += "?" + query
 		}
 		proxyRequest("GET", url, c)
 	})
-	protected.GET("/api/alerts", func(c *gin.Context) { proxyRequest("GET", "http://localhost:8082/alerts", c) })
+	protected.GET("/api/alerts", func(c *gin.Context) { proxyRequest("GET", telemetrySvc+"/alerts", c) })
 	
-	protected.GET("/api/rules", func(c *gin.Context) { proxyRequest("GET", "http://localhost:8082/rules", c) })
-	protected.POST("/api/rules", func(c *gin.Context) { proxyRequest("POST", "http://localhost:8082/rules", c) })
-	protected.DELETE("/api/rules/:id", func(c *gin.Context) { proxyRequest("DELETE", "http://localhost:8082/rules/"+c.Param("id"), c) })
+	protected.GET("/api/rules", func(c *gin.Context) { proxyRequest("GET", ruleSvc+"/rules", c) })
+	protected.POST("/api/rules", func(c *gin.Context) { proxyRequest("POST", ruleSvc+"/rules", c) })
+	protected.DELETE("/api/rules/:id", func(c *gin.Context) { proxyRequest("DELETE", ruleSvc+"/rules/"+c.Param("id"), c) })
 
 	protected.POST("/api/devices/:id/command", func(c *gin.Context) {
 		id := c.Param("id")

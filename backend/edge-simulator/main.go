@@ -18,8 +18,12 @@ type TelemetryPayload struct {
 }
 
 func createClient(deviceID string) mqtt.Client {
+	mqttBroker := os.Getenv("MQTT_BROKER")
+	if mqttBroker == "" {
+		mqttBroker = "localhost:1883"
+	}
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://localhost:1883")
+	opts.AddBroker(fmt.Sprintf("tcp://%s", mqttBroker))
 	opts.SetClientID(deviceID)
 	
 	// Set Last Will and Testament (LWT)
