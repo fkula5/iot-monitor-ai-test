@@ -72,6 +72,9 @@ func initDB() {
 	if count == 0 {
 		hashed, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
 		db.Create(&User{Username: "admin", Password: string(hashed), Role: "Admin"})
+	} else {
+		// Migrate existing admin to Admin role
+		db.Model(&User{}).Where("username = ?", "admin").Update("role", "Admin")
 	}
 }
 
