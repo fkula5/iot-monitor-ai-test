@@ -11,6 +11,8 @@ import { AddDeviceModal } from './components/AddDeviceModal';
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [token, setToken] = useState(localStorage.getItem('jwt_token') || null);
+  const [userRole, setUserRole] = useState(null);
+  const [username, setUsername] = useState(null);
   const [timeRange, setTimeRange] = useState('-15m');
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
   const [loginError, setLoginError] = useState('');
@@ -54,6 +56,23 @@ function App() {
       setLoginError('Błąd połączenia z serwerem logowania');
     }
   };
+
+  // Decode JWT on token change
+  useEffect(() => {
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserRole(payload.role || 'Viewer');
+        setUsername(payload.username || 'User');
+      } catch (e) {
+        setUserRole('Viewer');
+        setUsername('User');
+      }
+    } else {
+      setUserRole(null);
+      setUsername(null);
+    }
+  }, [token]);
 
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
@@ -143,8 +162,13 @@ function App() {
             {activeTab === 'alerts' && 'Alerty Systemowe'}
           </h1>
           <div className="user-profile">
-            <div className="avatar">A</div>
-            <span>Admin</span>
+            <div className="avatar" style={{backgroundColor: userRole === 'Admin' ? 'var(--primary)' : 'var(--secondary)'}}>
+              {username ? username.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-start'}}>
+              <span style={{lineHeight: '1.2'}}>{username}</span>
+              <span style={{fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.2'}}>{userRole}</span>
+            </div>
           </div>
         </header>
         
@@ -152,12 +176,14 @@ function App() {
           {activeTab === 'dashboard' && <Dashboard devices={devices} historyData={historyData} timeRange={timeRange} setTimeRange={setTimeRange} />}
           {activeTab === 'devices' && (
             <div>
-              <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
-                <button className="btn-primary" onClick={() => setShowAddDeviceModal(true)}>
-                  <Plus size={16} style={{marginRight: '8px'}}/> Dodaj Urządzenie
-                </button>
-              </div>
-              <DeviceList devices={devices} onDelete={deleteDevice} onCommand={sendCommand} />
+              {userRole === 'Admin' && (
+                <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
+                  <button className="btn-primary" onClick={() => setShowAddDeviceModal(true)}>
+                    <Plus size={16} style={{marginRight: '8px'}}/> Dodaj Urządzenie
+                  </button>
+                </div>
+              )}
+              <DeviceList devices={devices} onDelete={deleteDevice} onCommand={sendCommand} userRole={userRole} />
               
               {showAddDeviceModal && (
                 <AddDeviceModal 
@@ -171,7 +197,7 @@ function App() {
             </div>
           )}
           {activeTab === 'alerts' && <AlertsList alerts={alerts} />}
-          {activeTab === 'rules' && <Rules rules={rules} addRule={addRule} deleteRule={deleteRule} devices={devices} />}
+          {activeTab === 'rules' && <Rules rules={rules} addRule={addRule} deleteRule={deleteRule} devices={devices} userRole={userRole} />}
         </div>
       </main>
 

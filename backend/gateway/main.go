@@ -67,6 +67,24 @@ func JWTMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
 		}
+		
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if role, ok := claims["role"].(string); ok {
+				c.Set("role", role)
+			}
+		}
+
+		c.Next()
+	}
+}
+
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		if !exists || role != "Admin" {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+			return
+		}
 		c.Next()
 	}
 }
@@ -189,8 +207,8 @@ func main() {
 	ruleSvc := getEnvOrDefault("RULE_SVC_URL", "http://localhost:8082")
 
 	protected.GET("/api/devices", func(c *gin.Context) { proxyRequest("GET", deviceSvc+"/devices", c) })
-	protected.POST("/api/devices", func(c *gin.Context) { proxyRequest("POST", deviceSvc+"/devices", c) })
-	protected.DELETE("/api/devices/:id", func(c *gin.Context) { proxyRequest("DELETE", deviceSvc+"/devices/"+c.Param("id"), c) })
+	protected.POST("/api/devices", RequireAdmin(), func(c *gin.Context) { proxyRequest("POST", deviceSvc+"/devices", c) })
+	protected.DELETE("/api/devices/:id", RequireAdmin(), func(c *gin.Context) { proxyRequest("DELETE", deviceSvc+"/devices/"+c.Param("id"), c) })
 	
 	protected.GET("/api/history", func(c *gin.Context) {
 		query := c.Request.URL.RawQuery
@@ -203,10 +221,10 @@ func main() {
 	protected.GET("/api/alerts", func(c *gin.Context) { proxyRequest("GET", telemetrySvc+"/alerts", c) })
 	
 	protected.GET("/api/rules", func(c *gin.Context) { proxyRequest("GET", ruleSvc+"/rules", c) })
-	protected.POST("/api/rules", func(c *gin.Context) { proxyRequest("POST", ruleSvc+"/rules", c) })
-	protected.DELETE("/api/rules/:id", func(c *gin.Context) { proxyRequest("DELETE", ruleSvc+"/rules/"+c.Param("id"), c) })
+	protected.POST("/api/rules", RequireAdmin(), func(c *gin.Context) { proxyRequest("POST", ruleSvc+"/rules", c) })
+	protected.DELETE("/api/rules/:id", RequireAdmin(), func(c *gin.Context) { proxyRequest("DELETE", ruleSvc+"/rules/"+c.Param("id"), c) })
 
-	protected.POST("/api/devices/:id/command", func(c *gin.Context) {
+	protected.POST("/api/devices/:id/command", RequireAdmin(), func(c *gin.Context) {
 		id := c.Param("id")
 		var payload map[string]string
 		if err := c.BindJSON(&payload); err != nil {

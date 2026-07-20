@@ -20,6 +20,7 @@ type User struct {
 	ID       uint   `json:"id" gorm:"primaryKey"`
 	Username string `json:"username" gorm:"unique"`
 	Password string `json:"-"`
+	Role     string `json:"role"`
 }
 
 type Credentials struct {
@@ -29,6 +30,7 @@ type Credentials struct {
 
 type Claims struct {
 	Username string `json:"username"`
+	Role     string `json:"role"`
 	jwt.RegisteredClaims
 }
 
@@ -69,7 +71,7 @@ func initDB() {
 	db.Model(&User{}).Count(&count)
 	if count == 0 {
 		hashed, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
-		db.Create(&User{Username: "admin", Password: string(hashed)})
+		db.Create(&User{Username: "admin", Password: string(hashed), Role: "Admin"})
 	}
 }
 
@@ -94,6 +96,7 @@ func loginHandler(c *gin.Context) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
 		Username: creds.Username,
+		Role:     user.Role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
@@ -117,7 +120,7 @@ func registerHandler(c *gin.Context) {
 	}
 
 	hashed, _ := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
-	user := User{Username: creds.Username, Password: string(hashed)}
+	user := User{Username: creds.Username, Password: string(hashed), Role: "Viewer"}
 
 	if err := db.Create(&user).Error; err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "Username taken"})
