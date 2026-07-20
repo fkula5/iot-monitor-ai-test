@@ -1,0 +1,362 @@
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+}
+
+.sidebar {
+  width: 260px;
+  background-color: var(--surface-color);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.logo-icon {
+  background-color: var(--primary);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-header h2 {
+  font-size: 1.25rem;
+  margin: 0;
+  color: var(--text-main);
+}
+
+.sidebar-nav {
+  padding: 1.5rem 1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.nav-item:hover {
+  background-color: var(--bg-color);
+  color: var(--text-main);
+}
+
+.nav-item.active {
+  background-color: #eff6ff;
+  color: var(--primary);
+}
+
+.nav-item.logout {
+  color: var(--danger);
+}
+.nav-item.logout:hover {
+  background-color: #fef2f2;
+}
+
+.sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.top-header {
+  height: 72px;
+  background-color: var(--surface-color);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+}
+
+.top-header h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 500;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  background-color: var(--primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.content-area {
+  padding: 2rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Login Styles */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-color);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.login-card h2 {
+  font-size: 1.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.input-group input {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 500;
+  margin-top: 1rem;
+  transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+/* Dashboard & Components specific styles */
+.dashboard-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.metric-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--bg-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.metric-card h3 {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+  font-weight: 500;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  height: 350px;
+}
+
+.chart-card h3 {
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+}
+
+.chart-wrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Table styles */
+.list-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 1rem 1.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+  background-color: var(--bg-color);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+.row-offline td {
+  opacity: 0.6;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 99px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.status-badge.online {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.offline {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.battery-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.text-muted { color: var(--text-muted); }
+.text-center { text-align: center; }
+.fw-500 { font-weight: 500; }
+.fw-600 { font-weight: 600; }
+
+/* Alerts */
+.alerts-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.alert-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.alert-item:last-child {
+  border-bottom: none;
+}
+
+.alert-item.warning .alert-icon {
+  color: var(--warning);
+}
+.alert-item.error .alert-icon {
+  color: var(--danger);
+}
+
+.alert-content p {
+  margin: 0.25rem 0;
+}
+
+.alert-time {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
