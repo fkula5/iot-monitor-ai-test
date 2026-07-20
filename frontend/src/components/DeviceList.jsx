@@ -1,7 +1,7 @@
 import React from 'react';
 import { Wifi, WifiOff, Battery, Trash2, Power, RotateCw, PowerOff } from 'lucide-react';
 
-export const DeviceList = ({ devices, onDelete, onCommand, userRole }) => {
+export const DeviceList = ({ devices, onDelete, onCommand, permissions, userRole }) => {
   return (
     <div className="card list-card">
       <table className="data-table">
@@ -13,7 +13,7 @@ export const DeviceList = ({ devices, onDelete, onCommand, userRole }) => {
             <th>Bateria</th>
             <th>Uptime</th>
             <th>Ostatni Odczyt</th>
-            {userRole === 'Admin' && <th>Akcje</th>}
+            {permissions.canWriteDevices && <th>Akcje</th>}
           </tr>
         </thead>
         <tbody>
@@ -37,7 +37,7 @@ export const DeviceList = ({ devices, onDelete, onCommand, userRole }) => {
               <td className="fw-600">
                 {dev.value !== null ? `${dev.value} ${dev.unit}` : '-'}
               </td>
-              {userRole === 'Admin' && (
+              {permissions.canWriteDevices && (
                 <td>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn-icon" onClick={() => onCommand(dev.id, 'TURN_ON')} title="Włącz">

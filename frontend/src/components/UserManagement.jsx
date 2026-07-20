@@ -3,6 +3,7 @@ import { Trash2, UserCog, User, ShieldAlert } from 'lucide-react';
 
 export const UserManagement = ({ token }) => {
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [error, setError] = useState(null);
 
   const fetchUsers = async () => {
@@ -15,6 +16,17 @@ export const UserManagement = ({ token }) => {
       if (!res.ok) throw new Error('Brak dostępu lub błąd serwera');
       const data = await res.json();
       setUsers(data);
+      
+      const rolesRes = await fetch('/api/roles', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (rolesRes.ok) {
+        const rolesData = await rolesRes.json();
+        setRoles(rolesData);
+      }
+      
       setError(null);
     } catch (e) {
       setError(e.message);
@@ -111,8 +123,15 @@ export const UserManagement = ({ token }) => {
                   }}
                   disabled={u.username === 'admin'}
                 >
-                  <option value="Viewer">Viewer</option>
-                  <option value="Admin">Admin</option>
+                  {roles.map(r => (
+                    <option key={r.id} value={r.name}>{r.name}</option>
+                  ))}
+                  {roles.length === 0 && (
+                    <>
+                      <option value="Viewer">Viewer</option>
+                      <option value="Admin">Admin</option>
+                    </>
+                  )}
                 </select>
               </td>
               <td>

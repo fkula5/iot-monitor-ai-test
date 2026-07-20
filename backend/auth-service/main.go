@@ -16,11 +16,19 @@ import (
 
 var jwtKey = []byte("super_secret_key_123") // In prod, load from ENV
 
+type RoleDefinition struct {
+	ID              uint   `json:"id" gorm:"primaryKey"`
+	Name            string `json:"name" gorm:"unique"`
+	CanWriteDevices bool   `json:"canWriteDevices"`
+	CanWriteRules   bool   `json:"canWriteRules"`
+	CanManageUsers  bool   `json:"canManageUsers"`
+}
+
 type User struct {
 	ID       uint   `json:"id" gorm:"primaryKey"`
 	Username string `json:"username" gorm:"unique"`
 	Password string `json:"-"`
-	Role     string `json:"role"`
+	Role     string `json:"role"` // This corresponds to RoleDefinition.Name
 }
 
 type Credentials struct {
@@ -29,8 +37,11 @@ type Credentials struct {
 }
 
 type Claims struct {
-	Username string `json:"username"`
-	Role     string `json:"role"`
+	Username        string `json:"username"`
+	Role            string `json:"role"`
+	CanWriteDevices bool   `json:"canWriteDevices"`
+	CanWriteRules   bool   `json:"canWriteRules"`
+	CanManageUsers  bool   `json:"canManageUsers"`
 	jwt.RegisteredClaims
 }
 
@@ -64,7 +75,15 @@ func initDB() {
 	if err != nil {
 		log.Fatal("failed to connect database after retries: ", err)
 	}
-	db.AutoMigrate(&User{})
+	db.AutoMigrate(&RoleDefinition{}, &User{})
+
+	// Seed roles
+	var roleCount int64
+	db.Model(&RoleDefinition{}).Count(&roleCount)
+	if roleCount == 0 {
+		db.Create(&RoleDefinition{Name: "Admin", CanWriteDevices: true, CanWriteRules: true, CanManageUsers: true})
+		db.Create(&RoleDefinition{Name: "Viewer", CanWriteDevices: false, CanWriteRules: false, CanManageUsers: false})
+	}
 
 	// Create demo user
 	var count int64
@@ -96,10 +115,16 @@ func loginHandler(c *gin.Context) {
 		return
 	}
 
+	var roleDef RoleDefinition
+	db.Where("name = ?", user.Role).First(&roleDef)
+
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
-		Username: creds.Username,
-		Role:     user.Role,
+		Username:        creds.Username,
+		Role:            user.Role,
+		CanWriteDevices: roleDef.CanWriteDevices,
+		CanWriteRules:   roleDef.CanWriteRules,
+		CanManageUsers:  roleDef.CanManageUsers,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
@@ -152,8 +177,10 @@ func updateRoleHandler(c *gin.Context) {
 		return
 	}
 
-	if payload.Role != "Admin" && payload.Role != "Viewer" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
+	// Validate if role exists
+	var roleDef RoleDefinition
+	if err := db.Where("name = ?", payload.Role).First(&roleDef).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Role does not exist"})
 		return
 	}
 
@@ -174,6 +201,43 @@ func deleteUserHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted"})
 }
 
+// Role Management Handlers
+func getRolesHandler(c *gin.Context) {
+	var roles []RoleDefinition
+	if err := db.Find(&roles).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch roles"})
+		return
+	}
+	c.JSON(http.StatusOK, roles)
+}
+
+func createRoleHandler(c *gin.Context) {
+	var payload RoleDefinition
+	if err := c.BindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+		return
+	}
+
+	if err := db.Create(&payload).Error; err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Failed to create role, might already exist"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Role created", "role": payload})
+}
+
+func deleteRoleHandler(c *gin.Context) {
+	name := c.Param("name")
+	if name == "Admin" || name == "Viewer" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cannot delete system default roles"})
+		return
+	}
+	if err := db.Where("name = ?", name).Delete(&RoleDefinition{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete role"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Role deleted"})
+}
+
 func main() {
 	initDB()
 	r := gin.Default()
@@ -183,6 +247,10 @@ func main() {
 	r.GET("/users", getUsersHandler)
 	r.PUT("/users/:id/role", updateRoleHandler)
 	r.DELETE("/users/:id", deleteUserHandler)
+
+	r.GET("/roles", getRolesHandler)
+	r.POST("/roles", createRoleHandler)
+	r.DELETE("/roles/:name", deleteRoleHandler)
 
 	log.Println("Auth Service running on port 8083")
 	r.Run(":8083")
