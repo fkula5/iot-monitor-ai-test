@@ -1,0 +1,59 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main", "feat/*" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  backend-test:
+    name: Backend Lint & Test (Go)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: 'stable'
+        cache-dependency-path: backend/**/go.sum
+
+    - name: Run go vet and go fmt
+      run: |
+        cd backend/device-service
+        go mod tidy
+        go vet ./...
+        
+    - name: Test device-service
+      run: |
+        cd backend/device-service
+        go test -v ./...
+
+  frontend-test:
+    name: Frontend Lint & Test (React)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Lint (oxlint)
+      run: |
+        cd frontend
+        npx --yes oxlint@latest
+
+    - name: Test (Vitest)
+      run: |
+        cd frontend
+        npm run test
