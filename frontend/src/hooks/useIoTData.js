@@ -15,10 +15,10 @@ export const useIoTData = (token, timeRange = '-15m') => {
     if (!token) return;
     try {
       const [devRes, histRes, alertRes, rulesRes] = await Promise.all([
-        fetch('http://localhost:8080/api/devices', { headers: getHeaders() }),
-        fetch(`http://localhost:8080/api/history?range=${timeRange}`, { headers: getHeaders() }),
-        fetch('http://localhost:8080/api/alerts', { headers: getHeaders() }),
-        fetch('http://localhost:8080/api/rules', { headers: getHeaders() })
+        fetch('/api/devices', { headers: getHeaders() }),
+        fetch(`/api/history?range=${timeRange}`, { headers: getHeaders() }),
+        fetch('/api/alerts', { headers: getHeaders() }),
+        fetch('/api/rules', { headers: getHeaders() })
       ]);
       if (devRes.ok) setDevices((await devRes.json()) || []);
       if (histRes.ok) setHistoryData(await histRes.json());
@@ -41,7 +41,7 @@ export const useIoTData = (token, timeRange = '-15m') => {
     fetchInitialData();
 
     // 2. Setup WebSocket for real-time updates (pass token in query string)
-    const ws = new WebSocket(`ws://localhost:8080/ws?token=${token}`);
+    const ws = new WebSocket(`ws://${window.location.host}/ws?token=${token}`);
     
     ws.onmessage = (event) => {
       const msg = JSON.parse(event.data);
@@ -81,7 +81,7 @@ export const useIoTData = (token, timeRange = '-15m') => {
   }, [token, timeRange]);
 
   const addDevice = async (device) => {
-    const res = await fetch('http://localhost:8080/api/devices', {
+    const res = await fetch('/api/devices', {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(device)
@@ -90,7 +90,7 @@ export const useIoTData = (token, timeRange = '-15m') => {
   };
 
   const deleteDevice = async (id) => {
-    const res = await fetch(`http://localhost:8080/api/devices/${id}`, {
+    const res = await fetch(`/api/devices/${id}`, {
       method: 'DELETE',
       headers: getHeaders()
     });
@@ -98,7 +98,7 @@ export const useIoTData = (token, timeRange = '-15m') => {
   };
 
   const sendCommand = async (id, command) => {
-    const res = await fetch(`http://localhost:8080/api/devices/${id}/command`, {
+    const res = await fetch(`/api/devices/${id}/command`, {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ command })
@@ -107,7 +107,7 @@ export const useIoTData = (token, timeRange = '-15m') => {
   };
 
   const addRule = async (rule) => {
-    const res = await fetch('http://localhost:8080/api/rules', {
+    const res = await fetch('/api/rules', {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(rule)
@@ -116,7 +116,7 @@ export const useIoTData = (token, timeRange = '-15m') => {
   };
 
   const deleteRule = async (id) => {
-    const res = await fetch(`http://localhost:8080/api/rules/${id}`, {
+    const res = await fetch(`/api/rules/${id}`, {
       method: 'DELETE',
       headers: getHeaders()
     });
