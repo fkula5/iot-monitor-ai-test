@@ -13,9 +13,24 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 var jwtKey = []byte("super_secret_key_123") // Needs to match auth-service
+var mqttClient mqtt.Client
+
+func initMQTT() {
+	opts := mqtt.NewClientOptions()
+	opts.AddBroker("tcp://localhost:1883")
+	opts.SetClientID("api_gateway")
+
+	mqttClient = mqtt.NewClient(opts)
+	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
+		log.Printf("MQTT Error in Gateway: %v", token.Error())
+	} else {
+		log.Println("Gateway Connected to MQTT Broker for Commands")
+	}
+}
 
 func JWTMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -120,6 +135,7 @@ func wsHandler(c *gin.Context) {
 }
 
 func main() {
+	initMQTT()
 	r := gin.Default()
 	
 	// Basic CORS middleware
@@ -163,6 +179,29 @@ func main() {
 	protected.GET("/api/rules", func(c *gin.Context) { proxyRequest("GET", "http://localhost:8082/rules", c) })
 	protected.POST("/api/rules", func(c *gin.Context) { proxyRequest("POST", "http://localhost:8082/rules", c) })
 	protected.DELETE("/api/rules/:id", func(c *gin.Context) { proxyRequest("DELETE", "http://localhost:8082/rules/"+c.Param("id"), c) })
+
+	protected.POST("/api/devices/:id/command", func(c *gin.Context) {
+		id := c.Param("id")
+		var payload map[string]string
+		if err := c.BindJSON(&payload); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			return
+		}
+		
+		cmd, exists := payload["command"]
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "command required"})
+			return
+		}
+
+		topic := fmt.Sprintf("iot/sensors/%s/command", id)
+		if mqttClient != nil && mqttClient.IsConnected() {
+			mqttClient.Publish(topic, 1, false, cmd)
+			c.JSON(http.StatusOK, gin.H{"status": "command sent"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "MQTT disconnected"})
+		}
+	})
 
 	protected.GET("/ws", wsHandler)
 
