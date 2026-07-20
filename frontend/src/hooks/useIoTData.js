@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 export const useIoTData = (token, timeRange = '-15m') => {
   const [devices, setDevices] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [rules, setRules] = useState([]);
   const [historyData, setHistoryData] = useState({});
 
   const getHeaders = () => ({
@@ -13,15 +14,17 @@ export const useIoTData = (token, timeRange = '-15m') => {
   const fetchInitialData = async () => {
     if (!token) return;
     try {
-      const [devRes, histRes, alertRes] = await Promise.all([
+      const [devRes, histRes, alertRes, rulesRes] = await Promise.all([
         fetch('http://localhost:8080/api/devices', { headers: getHeaders() }),
         fetch(`http://localhost:8080/api/history?range=${timeRange}`, { headers: getHeaders() }),
-        fetch('http://localhost:8080/api/alerts', { headers: getHeaders() })
+        fetch('http://localhost:8080/api/alerts', { headers: getHeaders() }),
+        fetch('http://localhost:8080/api/rules', { headers: getHeaders() })
       ]);
       
       if (devRes.ok) setDevices(await devRes.json());
       if (histRes.ok) setHistoryData(await histRes.json());
       if (alertRes.ok) setAlerts(await alertRes.json());
+      if (rulesRes.ok) setRules(await rulesRes.json());
     } catch (e) {
       console.error("Failed to fetch initial data", e);
     }
@@ -31,6 +34,7 @@ export const useIoTData = (token, timeRange = '-15m') => {
     if (!token) {
       setDevices([]);
       setAlerts([]);
+      setRules([]);
       setHistoryData({});
       return;
     }
@@ -94,5 +98,22 @@ export const useIoTData = (token, timeRange = '-15m') => {
     if (res.ok) fetchInitialData();
   };
 
-  return { devices, alerts, historyData, fetchInitialData, addDevice, deleteDevice };
+  const addRule = async (rule) => {
+    const res = await fetch('http://localhost:8080/api/rules', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(rule)
+    });
+    if (res.ok) fetchInitialData();
+  };
+
+  const deleteRule = async (id) => {
+    const res = await fetch(`http://localhost:8080/api/rules/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (res.ok) fetchInitialData();
+  };
+
+  return { devices, alerts, rules, historyData, fetchInitialData, addDevice, deleteDevice, addRule, deleteRule };
 };

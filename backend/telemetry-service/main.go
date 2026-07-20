@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -12,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 type DataPoint struct {
@@ -32,6 +35,14 @@ type TelemetryPayload struct {
 	Value    float64 `json:"value"`
 }
 
+type Rule struct {
+	ID        uint    `json:"id" gorm:"primaryKey"`
+	DeviceID  string  `json:"deviceId"`
+	Condition string  `json:"condition"` // e.g. ">", "<", "=="
+	Threshold float64 `json:"threshold"`
+	Message   string  `json:"message"`
+}
+
 var (
 	mu           sync.RWMutex
 	alerts       []Alert
@@ -41,7 +52,22 @@ var (
 	influxToken  = "my-super-secret-auth-token"
 	influxOrg    = "iot_org"
 	influxBucket = "telemetry_bucket"
+	db           *gorm.DB
 )
+
+func initDB(dbPath string) {
+	var err error
+	db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		log.Fatal("failed to connect rules database")
+	}
+	db.AutoMigrate(&Rule{})
+	var count int64
+	db.Model(&Rule{}).Count(&count)
+	if count == 0 {
+		db.Create(&Rule{DeviceID: "dev-1", Condition: ">", Threshold: 40.0, Message: "Krytyczna temperatura przekroczyła 40°C!"})
+	}
+}
 
 func initInflux() {
 	influxClient = influxdb2.NewClient(influxURL, influxToken)
@@ -62,18 +88,34 @@ func initMQTT() {
 		mu.Lock()
 		latestValues[payload.DeviceID] = payload.Value
 		
-		if payload.Value > 40.0 {
-			alert := Alert{
-				ID:        time.Now().UnixNano(),
-				DeviceID:  payload.DeviceID,
-				Message:   "Krytyczna temperatura przekroczyła 40°C! (MQTT/Alert Engine)",
-				Type:      "danger",
-				Timestamp: time.Now().Format(time.RFC3339),
+		var activeRules []Rule
+		db.Where("device_id = ? OR device_id = ?", payload.DeviceID, "all").Find(&activeRules)
+		
+		for _, rule := range activeRules {
+			triggered := false
+			switch rule.Condition {
+			case ">":
+				triggered = payload.Value > rule.Threshold
+			case "<":
+				triggered = payload.Value < rule.Threshold
+			case "==":
+				triggered = payload.Value == rule.Threshold
 			}
-			alerts = append([]Alert{alert}, alerts...)
-			if len(alerts) > 10 {
-				alerts = alerts[:10]
+
+			if triggered {
+				alert := Alert{
+					ID:        time.Now().UnixNano(),
+					DeviceID:  payload.DeviceID,
+					Message:   fmt.Sprintf("%s (Wartość: %.2f)", rule.Message, payload.Value),
+					Type:      "danger",
+					Timestamp: time.Now().Format(time.RFC3339),
+				}
+				alerts = append([]Alert{alert}, alerts...)
 			}
+		}
+
+		if len(alerts) > 10 {
+			alerts = alerts[:10]
 		}
 		mu.Unlock()
 
@@ -97,10 +139,7 @@ func initMQTT() {
 	log.Println("Subscribed to MQTT topics.")
 }
 
-func main() {
-	initInflux()
-	initMQTT()
-
+func setupRouter() *gin.Engine {
 	r := gin.Default()
 
 	r.GET("/history", func(c *gin.Context) {
@@ -151,6 +190,44 @@ func main() {
 		defer mu.RUnlock()
 		c.JSON(http.StatusOK, alerts)
 	})
+
+	r.GET("/rules", func(c *gin.Context) {
+		var rules []Rule
+		db.Find(&rules)
+		c.JSON(http.StatusOK, rules)
+	})
+
+	r.POST("/rules", func(c *gin.Context) {
+		var rule Rule
+		if err := c.BindJSON(&rule); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+			return
+		}
+		if err := db.Create(&rule).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create rule"})
+			return
+		}
+		c.JSON(http.StatusCreated, rule)
+	})
+
+	r.DELETE("/rules/:id", func(c *gin.Context) {
+		id := c.Param("id")
+		if err := db.Delete(&Rule{}, id).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete rule"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Deleted"})
+	})
+
+	return r
+}
+
+func main() {
+	initDB("rules.db")
+	initInflux()
+	initMQTT()
+
+	r := setupRouter()
 
 	log.Println("Telemetry Service running on port 8082")
 	r.Run(":8082")

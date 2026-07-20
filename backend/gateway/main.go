@@ -159,6 +159,10 @@ func main() {
 		proxyRequest("GET", url, c)
 	})
 	protected.GET("/api/alerts", func(c *gin.Context) { proxyRequest("GET", "http://localhost:8082/alerts", c) })
+	
+	protected.GET("/api/rules", func(c *gin.Context) { proxyRequest("GET", "http://localhost:8082/rules", c) })
+	protected.POST("/api/rules", func(c *gin.Context) { proxyRequest("POST", "http://localhost:8082/rules", c) })
+	protected.DELETE("/api/rules/:id", func(c *gin.Context) { proxyRequest("DELETE", "http://localhost:8082/rules/"+c.Param("id"), c) })
 
 	protected.GET("/ws", wsHandler)
 

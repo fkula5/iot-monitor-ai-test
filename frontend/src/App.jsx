@@ -5,6 +5,7 @@ import { useIoTData } from './hooks/useIoTData';
 import { Dashboard } from './components/Dashboard';
 import { DeviceList } from './components/DeviceList';
 import { AlertsList } from './components/AlertsList';
+import { Rules } from './components/Rules';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -12,8 +13,22 @@ function App() {
   const [timeRange, setTimeRange] = useState('-15m');
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
   const [loginError, setLoginError] = useState('');
+  const [toasts, setToasts] = useState([]);
 
-  const { devices, alerts, historyData, fetchInitialData, addDevice, deleteDevice } = useIoTData(token, timeRange);
+  const { devices, alerts, rules, historyData, fetchInitialData, addDevice, deleteDevice, addRule, deleteRule } = useIoTData(token, timeRange);
+
+  // Simple toast logic based on new alerts
+  useEffect(() => {
+    if (alerts.length > 0) {
+      const latestAlert = alerts[0]; // Alerts are prepended
+      // Ensure we don't spam the same alert on load
+      const isNew = Date.now() - (latestAlert.id / 1000000) < 5000;
+      if (isNew) {
+        setToasts(prev => [...prev, latestAlert]);
+        setTimeout(() => setToasts(prev => prev.slice(1)), 4000);
+      }
+    }
+  }, [alerts]);
 
   const getUnreadAlerts = () => alerts.length;
 
@@ -98,6 +113,10 @@ function App() {
             </div>
             <span>Alerty</span>
           </button>
+          <button className={`nav-item ${activeTab === 'rules' ? 'active' : ''}`} onClick={() => setActiveTab('rules')}>
+            <Settings size={20} />
+            <span>Reguły Engine</span>
+          </button>
           <button className="nav-item">
             <Settings size={20} />
             <span>Ustawienia</span>
@@ -139,8 +158,18 @@ function App() {
             </div>
           )}
           {activeTab === 'alerts' && <AlertsList alerts={alerts} />}
+          {activeTab === 'rules' && <Rules rules={rules} addRule={addRule} deleteRule={deleteRule} devices={devices} />}
         </div>
       </main>
+
+      {/* Toasts */}
+      <div style={{ position: 'fixed', bottom: '20px', right: '20px', display: 'flex', flexDirection: 'column', gap: '10px', zIndex: 9999 }}>
+        {toasts.map((toast, idx) => (
+          <div key={idx} style={{ background: 'var(--danger)', color: 'white', padding: '15px 20px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', animation: 'slideIn 0.3s ease-out' }}>
+            <strong>Nowy Alert:</strong> {toast.message}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
