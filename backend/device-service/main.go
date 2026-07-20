@@ -3,6 +3,9 @@ package main
 import (
 	"log"
 	"strings"
+	"os"
+	"fmt"
+	"time"
 	
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"device-service/handlers"
@@ -26,8 +29,30 @@ func SetupRouter(repo repository.DeviceRepository) *gin.Engine {
 }
 
 func main() {
-	dsn := "host=localhost user=admin password=adminpassword dbname=iot_db port=5432 sslmode=disable TimeZone=Europe/Warsaw"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" { dbHost = "localhost" }
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" { dbPort = "5432" }
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" { dbUser = "admin" }
+	dbPass := os.Getenv("DB_PASSWORD")
+	if dbPass == "" { dbPass = "adminpassword" }
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" { dbName = "iot_db" }
+
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Europe/Warsaw", dbHost, dbUser, dbPass, dbName, dbPort)
+	
+	var db *gorm.DB
+	var err error
+	for i := 0; i < 5; i++ {
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			break
+		}
+		log.Println("waiting for postgres...")
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
 		log.Fatal("failed to connect database")
 	}
@@ -53,8 +78,12 @@ func main() {
 }
 
 func initMQTT(repo repository.DeviceRepository) {
+	mqttBroker := os.Getenv("MQTT_BROKER")
+	if mqttBroker == "" {
+		mqttBroker = "localhost:1883"
+	}
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://localhost:1883")
+	opts.AddBroker(fmt.Sprintf("tcp://%s", mqttBroker))
 	opts.SetClientID("device_service")
 
 	client := mqtt.NewClient(opts)

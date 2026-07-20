@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -49,10 +50,10 @@ var (
 	alerts       = []Alert{}
 	latestValues = map[string]float64{}
 	influxClient influxdb2.Client
-	influxURL    = "http://localhost:8086"
-	influxToken  = "my-super-secret-auth-token"
-	influxOrg    = "iot_org"
-	influxBucket = "telemetry_bucket"
+	influxURL    = os.Getenv("INFLUX_URL")
+	influxToken  = os.Getenv("INFLUX_TOKEN")
+	influxOrg    = os.Getenv("INFLUX_ORG")
+	influxBucket = os.Getenv("INFLUX_BUCKET")
 	db           *gorm.DB
 )
 
@@ -75,12 +76,18 @@ func initDB(dbPath string) {
 }
 
 func initInflux() {
+	if influxURL == "" { influxURL = "http://localhost:8086" }
+	if influxToken == "" { influxToken = "my-super-secret-auth-token" }
+	if influxOrg == "" { influxOrg = "iot_org" }
+	if influxBucket == "" { influxBucket = "telemetry_bucket" }
 	influxClient = influxdb2.NewClient(influxURL, influxToken)
 }
 
 func initMQTT() {
+	mqttBroker := os.Getenv("MQTT_BROKER")
+	if mqttBroker == "" { mqttBroker = "localhost:1883" }
 	opts := mqtt.NewClientOptions()
-	opts.AddBroker("tcp://localhost:1883")
+	opts.AddBroker(fmt.Sprintf("tcp://%s", mqttBroker))
 	opts.SetClientID("telemetry_service")
 
 	opts.SetDefaultPublishHandler(func(client mqtt.Client, msg mqtt.Message) {
@@ -228,7 +235,18 @@ func setupRouter() *gin.Engine {
 }
 
 func main() {
-	dsn := "host=localhost user=admin password=adminpassword dbname=iot_db port=5432 sslmode=disable TimeZone=Europe/Warsaw"
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" { dbHost = "localhost" }
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" { dbPort = "5432" }
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" { dbUser = "admin" }
+	dbPass := os.Getenv("DB_PASSWORD")
+	if dbPass == "" { dbPass = "adminpassword" }
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" { dbName = "iot_db" }
+
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Europe/Warsaw", dbHost, dbUser, dbPass, dbName, dbPort)
 	initDB(dsn)
 	initInflux()
 	initMQTT()

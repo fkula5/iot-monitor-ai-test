@@ -6,6 +6,7 @@ import { Dashboard } from './components/Dashboard';
 import { DeviceList } from './components/DeviceList';
 import { AlertsList } from './components/AlertsList';
 import { Rules } from './components/Rules';
+import { AddDeviceModal } from './components/AddDeviceModal';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -14,6 +15,7 @@ function App() {
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
   const [loginError, setLoginError] = useState('');
   const [toasts, setToasts] = useState([]);
+  const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
 
   const { devices, alerts, rules, historyData, fetchInitialData, addDevice, deleteDevice, sendCommand, addRule, deleteRule } = useIoTData(token, timeRange);
 
@@ -36,7 +38,7 @@ function App() {
   const handleLogin = async () => {
     setLoginError('');
     try {
-      const res = await fetch('http://localhost:8080/api/auth/login', {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(loginForm)
@@ -151,11 +153,21 @@ function App() {
           {activeTab === 'devices' && (
             <div>
               <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
-                <button className="btn-primary" onClick={() => addDevice({id: 'dev-'+Date.now(), name: 'Nowy Czujnik', type: 'temperature', unit: '°C'})}>
+                <button className="btn-primary" onClick={() => setShowAddDeviceModal(true)}>
                   <Plus size={16} style={{marginRight: '8px'}}/> Dodaj Urządzenie
                 </button>
               </div>
               <DeviceList devices={devices} onDelete={deleteDevice} onCommand={sendCommand} />
+              
+              {showAddDeviceModal && (
+                <AddDeviceModal 
+                  onClose={() => setShowAddDeviceModal(false)}
+                  onSave={(newDevice) => {
+                    addDevice(newDevice);
+                    setShowAddDeviceModal(false);
+                  }}
+                />
+              )}
             </div>
           )}
           {activeTab === 'alerts' && <AlertsList alerts={alerts} />}
