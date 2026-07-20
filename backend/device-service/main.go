@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"strings"
 	
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"device-service/handlers"
 	"device-service/models"
 	"device-service/repository"
@@ -42,8 +44,34 @@ func main() {
 		repo.Create(&models.Device{ID: "dev-4", Name: "Chłodnia - Sektor B", Type: "temperature", Status: "online", Battery: 100, Uptime: "5 dni 10h", Unit: "°C"})
 	}
 
+	initMQTT(repo)
+
 	r := SetupRouter(repo)
 
 	log.Println("Device Service running on port 8081")
 	r.Run(":8081")
+}
+
+func initMQTT(repo repository.DeviceRepository) {
+	opts := mqtt.NewClientOptions()
+	opts.AddBroker("tcp://localhost:1883")
+	opts.SetClientID("device_service")
+
+	client := mqtt.NewClient(opts)
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		log.Printf("MQTT Error: %v", token.Error())
+		return
+	}
+
+	client.Subscribe("iot/sensors/+/status", 1, func(c mqtt.Client, m mqtt.Message) {
+		topic := m.Topic()
+		parts := strings.Split(topic, "/")
+		if len(parts) >= 3 {
+			deviceID := parts[2]
+			status := string(m.Payload())
+			log.Printf("Device %s status changed to %s", deviceID, status)
+			repo.UpdateStatus(deviceID, status)
+		}
+	})
+	log.Println("Device Service Connected to MQTT and subscribed to status updates.")
 }

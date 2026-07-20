@@ -97,6 +97,15 @@ export const useIoTData = (token, timeRange = '-15m') => {
     if (res.ok) fetchInitialData();
   };
 
+  const sendCommand = async (id, command) => {
+    const res = await fetch(`http://localhost:8080/api/devices/${id}/command`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ command })
+    });
+    return res.ok;
+  };
+
   const addRule = async (rule) => {
     const res = await fetch('http://localhost:8080/api/rules', {
       method: 'POST',
@@ -114,5 +123,9 @@ export const useIoTData = (token, timeRange = '-15m') => {
     if (res.ok) fetchInitialData();
   };
 
-  return { devices, alerts, rules, historyData, fetchInitialData, addDevice, deleteDevice, addRule, deleteRule };
+  return {
+    devices, alerts, rules, historyData,
+    fetchInitialData, addDevice, deleteDevice, sendCommand,
+    addRule, deleteRule
+  };
 };

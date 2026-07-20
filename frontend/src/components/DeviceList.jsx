@@ -1,7 +1,7 @@
 import React from 'react';
-import { Wifi, WifiOff, Battery, Trash2 } from 'lucide-react';
+import { Wifi, WifiOff, Battery, Trash2, Power, RotateCw, PowerOff } from 'lucide-react';
 
-export const DeviceList = ({ devices, onDelete }) => {
+export const DeviceList = ({ devices, onDelete, onCommand }) => {
   return (
     <div className="card list-card">
       <table className="data-table">
@@ -38,9 +38,20 @@ export const DeviceList = ({ devices, onDelete }) => {
                 {dev.value !== null ? `${dev.value} ${dev.unit}` : '-'}
               </td>
               <td>
-                <button className="btn-icon" onClick={() => onDelete(dev.id)} title="Usuń urządzenie">
-                  <Trash2 size={16} color="var(--danger)" />
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn-icon" onClick={() => onCommand(dev.id, 'TURN_ON')} title="Włącz">
+                    <Power size={16} color="var(--success)" />
+                  </button>
+                  <button className="btn-icon" onClick={() => onCommand(dev.id, 'TURN_OFF')} title="Wyłącz">
+                    <PowerOff size={16} color="var(--danger)" />
+                  </button>
+                  <button className="btn-icon" onClick={() => onCommand(dev.id, 'RESTART')} title="Zrestartuj">
+                    <RotateCw size={16} color="var(--primary)" />
+                  </button>
+                  <button className="btn-icon" onClick={() => onDelete(dev.id)} title="Usuń urządzenie">
+                    <Trash2 size={16} color="var(--text-muted)" />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

@@ -15,7 +15,7 @@ function App() {
   const [loginError, setLoginError] = useState('');
   const [toasts, setToasts] = useState([]);
 
-  const { devices, alerts, rules, historyData, fetchInitialData, addDevice, deleteDevice, addRule, deleteRule } = useIoTData(token, timeRange);
+  const { devices, alerts, rules, historyData, fetchInitialData, addDevice, deleteDevice, sendCommand, addRule, deleteRule } = useIoTData(token, timeRange);
 
   // Simple toast logic based on new alerts
   useEffect(() => {
@@ -155,7 +155,7 @@ function App() {
                   <Plus size={16} style={{marginRight: '8px'}}/> Dodaj Urządzenie
                 </button>
               </div>
-              <DeviceList devices={devices} onDelete={deleteDevice} />
+              <DeviceList devices={devices} onDelete={deleteDevice} onCommand={sendCommand} />
             </div>
           )}
           {activeTab === 'alerts' && <AlertsList alerts={alerts} />}

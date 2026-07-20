@@ -11,6 +11,7 @@ type DeviceRepository interface {
 	Create(device *models.Device) error
 	Delete(id string) error
 	Count() (int64, error)
+	UpdateStatus(id string, status string) error
 }
 
 type deviceRepo struct {
@@ -39,4 +40,8 @@ func (r *deviceRepo) Count() (int64, error) {
 	var count int64
 	err := r.db.Model(&models.Device{}).Count(&count).Error
 	return count, err
+}
+
+func (r *deviceRepo) UpdateStatus(id string, status string) error {
+	return r.db.Model(&models.Device{}).Where("id = ?", id).Update("status", status).Error
 }
