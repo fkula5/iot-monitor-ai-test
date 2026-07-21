@@ -67,6 +67,39 @@ func JWTMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			return
 		}
+		
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			if role, ok := claims["role"].(string); ok {
+				c.Set("role", role)
+			}
+			if canWriteDevices, ok := claims["canWriteDevices"].(bool); ok {
+				c.Set("canWriteDevices", canWriteDevices)
+			}
+			if canWriteRules, ok := claims["canWriteRules"].(bool); ok {
+				c.Set("canWriteRules", canWriteRules)
+			}
+			if canManageUsers, ok := claims["canManageUsers"].(bool); ok {
+				c.Set("canManageUsers", canManageUsers)
+			}
+		}
+
+		c.Next()
+	}
+}
+
+func RequirePermission(permission string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		val, exists := c.Get(permission)
+		if !exists || val != true {
+			// Fallback: Admin always has access to everything
+			role, roleExists := c.Get("role")
+			if roleExists && role == "Admin" {
+				c.Next()
+				return
+			}
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": fmt.Sprintf("Permission %s required", permission)})
+			return
+		}
 		c.Next()
 	}
 }
@@ -155,8 +188,7 @@ func wsHandler(c *gin.Context) {
 	}
 }
 
-func main() {
-	initMQTT()
+func setupRouter() *gin.Engine {
 	r := gin.Default()
 	
 	// Basic CORS middleware
@@ -189,8 +221,8 @@ func main() {
 	ruleSvc := getEnvOrDefault("RULE_SVC_URL", "http://localhost:8082")
 
 	protected.GET("/api/devices", func(c *gin.Context) { proxyRequest("GET", deviceSvc+"/devices", c) })
-	protected.POST("/api/devices", func(c *gin.Context) { proxyRequest("POST", deviceSvc+"/devices", c) })
-	protected.DELETE("/api/devices/:id", func(c *gin.Context) { proxyRequest("DELETE", deviceSvc+"/devices/"+c.Param("id"), c) })
+	protected.POST("/api/devices", RequirePermission("canWriteDevices"), func(c *gin.Context) { proxyRequest("POST", deviceSvc+"/devices", c) })
+	protected.DELETE("/api/devices/:id", RequirePermission("canWriteDevices"), func(c *gin.Context) { proxyRequest("DELETE", deviceSvc+"/devices/"+c.Param("id"), c) })
 	
 	protected.GET("/api/history", func(c *gin.Context) {
 		query := c.Request.URL.RawQuery
@@ -203,10 +235,19 @@ func main() {
 	protected.GET("/api/alerts", func(c *gin.Context) { proxyRequest("GET", telemetrySvc+"/alerts", c) })
 	
 	protected.GET("/api/rules", func(c *gin.Context) { proxyRequest("GET", ruleSvc+"/rules", c) })
-	protected.POST("/api/rules", func(c *gin.Context) { proxyRequest("POST", ruleSvc+"/rules", c) })
-	protected.DELETE("/api/rules/:id", func(c *gin.Context) { proxyRequest("DELETE", ruleSvc+"/rules/"+c.Param("id"), c) })
+	protected.POST("/api/rules", RequirePermission("canWriteRules"), func(c *gin.Context) { proxyRequest("POST", ruleSvc+"/rules", c) })
+	protected.DELETE("/api/rules/:id", RequirePermission("canWriteRules"), func(c *gin.Context) { proxyRequest("DELETE", ruleSvc+"/rules/"+c.Param("id"), c) })
 
-	protected.POST("/api/devices/:id/command", func(c *gin.Context) {
+	authSvcPriv := getEnvOrDefault("AUTH_SVC_URL", "http://localhost:8083")
+	protected.GET("/api/users", RequirePermission("canManageUsers"), func(c *gin.Context) { proxyRequest("GET", authSvcPriv+"/users", c) })
+	protected.PUT("/api/users/:id/role", RequirePermission("canManageUsers"), func(c *gin.Context) { proxyRequest("PUT", authSvcPriv+"/users/"+c.Param("id")+"/role", c) })
+	protected.DELETE("/api/users/:id", RequirePermission("canManageUsers"), func(c *gin.Context) { proxyRequest("DELETE", authSvcPriv+"/users/"+c.Param("id"), c) })
+
+	protected.GET("/api/roles", RequirePermission("canManageUsers"), func(c *gin.Context) { proxyRequest("GET", authSvcPriv+"/roles", c) })
+	protected.POST("/api/roles", RequirePermission("canManageUsers"), func(c *gin.Context) { proxyRequest("POST", authSvcPriv+"/roles", c) })
+	protected.DELETE("/api/roles/:name", RequirePermission("canManageUsers"), func(c *gin.Context) { proxyRequest("DELETE", authSvcPriv+"/roles/"+c.Param("name"), c) })
+
+	protected.POST("/api/devices/:id/command", RequirePermission("canWriteDevices"), func(c *gin.Context) {
 		id := c.Param("id")
 		var payload map[string]string
 		if err := c.BindJSON(&payload); err != nil {
@@ -230,6 +271,13 @@ func main() {
 	})
 
 	protected.GET("/ws", wsHandler)
+
+	return r
+}
+
+func main() {
+	initMQTT()
+	r := setupRouter()
 
 	log.Println("API Gateway running on port 8080")
 	r.Run(":8080")

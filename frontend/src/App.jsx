@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Server, Settings, AlertTriangle, LogOut, Plus, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Server, Settings, AlertTriangle, LogOut, Plus, Trash2, UserCog } from 'lucide-react';
 import './App.css';
 import { useIoTData } from './hooks/useIoTData';
 import { Dashboard } from './components/Dashboard';
@@ -7,15 +7,29 @@ import { DeviceList } from './components/DeviceList';
 import { AlertsList } from './components/AlertsList';
 import { Rules } from './components/Rules';
 import { AddDeviceModal } from './components/AddDeviceModal';
+import { UserManagement } from './components/UserManagement';
+import { RoleManagement } from './components/RoleManagement';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [token, setToken] = useState(localStorage.getItem('jwt_token') || null);
+  const [userRole, setUserRole] = useState(null);
+  const [username, setUsername] = useState(null);
   const [timeRange, setTimeRange] = useState('-15m');
   const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
+  const [registerForm, setRegisterForm] = useState({ username: '', password: '', confirmPassword: '' });
   const [loginError, setLoginError] = useState('');
+  const [registerError, setRegisterError] = useState('');
+  const [registerSuccess, setRegisterSuccess] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
+
+  const [permissions, setPermissions] = useState({
+    canWriteDevices: false,
+    canWriteRules: false,
+    canManageUsers: false
+  });
 
   const { devices, alerts, rules, historyData, fetchInitialData, addDevice, deleteDevice, sendCommand, addRule, deleteRule } = useIoTData(token, timeRange);
 
@@ -55,6 +69,54 @@ function App() {
     }
   };
 
+  const handleRegister = async () => {
+    setRegisterError('');
+    setRegisterSuccess('');
+    if (registerForm.password !== registerForm.confirmPassword) {
+      setRegisterError('Hasła nie są identyczne');
+      return;
+    }
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: registerForm.username, password: registerForm.password })
+      });
+      if (!res.ok) {
+        setRegisterError('Nazwa użytkownika jest już zajęta lub wystąpił błąd');
+        return;
+      }
+      setRegisterSuccess('Konto utworzone pomyślnie. Możesz się zalogować.');
+      setTimeout(() => setIsRegistering(false), 2000);
+    } catch (e) {
+      setRegisterError('Błąd połączenia z serwerem logowania');
+    }
+  };
+
+  // Decode JWT on token change
+  useEffect(() => {
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserRole(payload.role || 'Viewer');
+        setUsername(payload.username || 'User');
+        setPermissions({
+          canWriteDevices: payload.canWriteDevices || false,
+          canWriteRules: payload.canWriteRules || false,
+          canManageUsers: payload.canManageUsers || false
+        });
+      } catch (e) {
+        setUserRole('Viewer');
+        setUsername('User');
+        setPermissions({ canWriteDevices: false, canWriteRules: false, canManageUsers: false });
+      }
+    } else {
+      setUserRole(null);
+      setUsername(null);
+      setPermissions({ canWriteDevices: false, canWriteRules: false, canManageUsers: false });
+    }
+  }, [token]);
+
   const handleLogout = () => {
     localStorage.removeItem('jwt_token');
     setToken(null);
@@ -65,27 +127,74 @@ function App() {
       <div className="login-container">
         <div className="card login-card">
           <h2>IoT Monitor</h2>
-          <p className="subtitle">Zaloguj się do systemu</p>
-          {loginError && <p style={{color: 'var(--danger)', marginBottom: '10px'}}>{loginError}</p>}
-          <div className="input-group">
-            <label>Login</label>
-            <input 
-              type="text" 
-              value={loginForm.username}
-              onChange={e => setLoginForm({...loginForm, username: e.target.value})}
-            />
-          </div>
-          <div className="input-group">
-            <label>Hasło</label>
-            <input 
-              type="password" 
-              value={loginForm.password}
-              onChange={e => setLoginForm({...loginForm, password: e.target.value})}
-            />
-          </div>
-          <button className="btn-primary" onClick={handleLogin}>
-            Zaloguj
-          </button>
+          <p className="subtitle">{isRegistering ? 'Utwórz nowe konto' : 'Zaloguj się do systemu'}</p>
+          
+          {isRegistering ? (
+            <>
+              {registerError && <p style={{color: 'var(--danger)', marginBottom: '10px'}}>{registerError}</p>}
+              {registerSuccess && <p style={{color: 'var(--success)', marginBottom: '10px'}}>{registerSuccess}</p>}
+              <div className="input-group">
+                <label>Login</label>
+                <input 
+                  type="text" 
+                  value={registerForm.username}
+                  onChange={e => setRegisterForm({...registerForm, username: e.target.value})}
+                />
+              </div>
+              <div className="input-group">
+                <label>Hasło</label>
+                <input 
+                  type="password" 
+                  value={registerForm.password}
+                  onChange={e => setRegisterForm({...registerForm, password: e.target.value})}
+                />
+              </div>
+              <div className="input-group">
+                <label>Powtórz hasło</label>
+                <input 
+                  type="password" 
+                  value={registerForm.confirmPassword}
+                  onChange={e => setRegisterForm({...registerForm, confirmPassword: e.target.value})}
+                />
+              </div>
+              <button className="btn-primary" onClick={handleRegister}>
+                Zarejestruj się
+              </button>
+              <div style={{textAlign: 'center', marginTop: '15px'}}>
+                <button className="btn-icon" style={{color: 'var(--primary)', border: 'none', background: 'none'}} onClick={() => setIsRegistering(false)}>
+                  Masz już konto? Zaloguj się.
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {loginError && <p style={{color: 'var(--danger)', marginBottom: '10px'}}>{loginError}</p>}
+              <div className="input-group">
+                <label>Login</label>
+                <input 
+                  type="text" 
+                  value={loginForm.username}
+                  onChange={e => setLoginForm({...loginForm, username: e.target.value})}
+                />
+              </div>
+              <div className="input-group">
+                <label>Hasło</label>
+                <input 
+                  type="password" 
+                  value={loginForm.password}
+                  onChange={e => setLoginForm({...loginForm, password: e.target.value})}
+                />
+              </div>
+              <button className="btn-primary" onClick={handleLogin}>
+                Zaloguj
+              </button>
+              <div style={{textAlign: 'center', marginTop: '15px'}}>
+                <button className="btn-icon" style={{color: 'var(--primary)', border: 'none', background: 'none'}} onClick={() => setIsRegistering(true)}>
+                  Nie masz konta? Zarejestruj się.
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
@@ -120,10 +229,12 @@ function App() {
             <Settings size={20} />
             <span>Reguły Engine</span>
           </button>
-          <button className="nav-item">
-            <Settings size={20} />
-            <span>Ustawienia</span>
-          </button>
+          {permissions.canManageUsers && (
+            <button className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+              <UserCog size={20} />
+              <span>Konta / Ustawienia</span>
+            </button>
+          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -143,8 +254,13 @@ function App() {
             {activeTab === 'alerts' && 'Alerty Systemowe'}
           </h1>
           <div className="user-profile">
-            <div className="avatar">A</div>
-            <span>Admin</span>
+            <div className="avatar" style={{backgroundColor: userRole === 'Admin' ? 'var(--primary)' : 'var(--secondary)'}}>
+              {username ? username.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-start'}}>
+              <span style={{lineHeight: '1.2'}}>{username}</span>
+              <span style={{fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.2'}}>{userRole}</span>
+            </div>
           </div>
         </header>
         
@@ -152,14 +268,16 @@ function App() {
           {activeTab === 'dashboard' && <Dashboard devices={devices} historyData={historyData} timeRange={timeRange} setTimeRange={setTimeRange} />}
           {activeTab === 'devices' && (
             <div>
-              <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
-                <button className="btn-primary" onClick={() => setShowAddDeviceModal(true)}>
-                  <Plus size={16} style={{marginRight: '8px'}}/> Dodaj Urządzenie
-                </button>
-              </div>
-              <DeviceList devices={devices} onDelete={deleteDevice} onCommand={sendCommand} />
+              {permissions.canWriteDevices && (
+                <div style={{display: 'flex', gap: '10px', marginBottom: '20px'}}>
+                  <button className="btn-primary" onClick={() => setShowAddDeviceModal(true)}>
+                    <Plus size={16} style={{marginRight: '8px'}}/> Dodaj Urządzenie
+                  </button>
+                </div>
+              )}
+              <DeviceList devices={devices} onDelete={deleteDevice} onCommand={sendCommand} permissions={permissions} userRole={userRole} />
               
-              {showAddDeviceModal && (
+              {showAddDeviceModal && permissions.canWriteDevices && (
                 <AddDeviceModal 
                   onClose={() => setShowAddDeviceModal(false)}
                   onSave={(newDevice) => {
@@ -171,7 +289,13 @@ function App() {
             </div>
           )}
           {activeTab === 'alerts' && <AlertsList alerts={alerts} />}
-          {activeTab === 'rules' && <Rules rules={rules} addRule={addRule} deleteRule={deleteRule} devices={devices} />}
+          {activeTab === 'rules' && <Rules rules={rules} addRule={addRule} deleteRule={deleteRule} devices={devices} permissions={permissions} userRole={userRole} />}
+          {activeTab === 'settings' && permissions.canManageUsers && (
+            <>
+              <UserManagement token={token} />
+              <RoleManagement token={token} />
+            </>
+          )}
         </div>
       </main>
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Activity } from 'lucide-react';
 
-export const Rules = ({ rules, addRule, deleteRule, devices }) => {
+export const Rules = ({ rules, addRule, deleteRule, devices, permissions, userRole }) => {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     deviceId: 'all',
@@ -25,9 +25,11 @@ export const Rules = ({ rules, addRule, deleteRule, devices }) => {
     <div className="rules-container">
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
         <h2>Reguły Logiczne (Dynamic Rule Engine)</h2>
-        <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-          <Plus size={16} style={{ marginRight: '8px' }} /> Dodaj Regułę
-        </button>
+        {permissions.canWriteRules && (
+          <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
+            <Plus size={16} style={{ marginRight: '8px' }} /> Dodaj Regułę
+          </button>
+        )}
       </div>
 
       {showForm && (
@@ -90,12 +92,14 @@ export const Rules = ({ rules, addRule, deleteRule, devices }) => {
               <p style={{ margin: '5px 0 0 0', fontSize: '14px', fontWeight: 'bold' }}>"{rule.message}"</p>
             </div>
 
-            <button 
-              style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-              onClick={() => deleteRule(rule.id)}
-            >
-              <Trash2 size={18} />
-            </button>
+            {permissions.canWriteRules && (
+              <button 
+                style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                onClick={() => deleteRule(rule.id)}
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
         ))}
         {rules.length === 0 && (

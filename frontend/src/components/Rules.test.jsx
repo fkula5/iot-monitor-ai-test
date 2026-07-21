@@ -20,6 +20,7 @@ test('renders rules and can add a new one', () => {
       devices={mockDevices} 
       addRule={addRuleMock} 
       deleteRule={deleteRuleMock} 
+      permissions={{canWriteRules: true}}
     />
   );
 
